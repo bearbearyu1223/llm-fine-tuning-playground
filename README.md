@@ -14,9 +14,7 @@ I hope you'll discover this article both informative and intriguing, igniting yo
 Enjoy the read, and let your innovation flourish!
 
 ## Fine-Tuning with Model Quantization and LoRA
-Base models such as Claude, T5, Falcon, and Llama2 excel at predicting tokens in sequences, but they *struggle with generating responses that align with instructions*. Fine-tuning techniques, such as **Supervised Fine-Tuning (SFT)** and **Reinforcement Learning from Human Feedback (RLHF)**, can be employed to bridge these gaps. In this blog, we'll explore the application of SFT to Falcon-7B, a 7-billion-parameter causal decoder model trained by TII on 1,500-billion tokens from RefinedWeb with curated corpora, for conversation summarization tasks.
-
-To further reduce the VRAM usage during training, we will fine-tune [a resharded version of Falcon-7B](https://huggingface.co/vilsonrodrigues/falcon-7b-sharded) in 4-bit precision via [QLoRA](https://arxiv.org/abs/2305.14314).
+Base models such as Claude, T5, Falcon, and Llama2 excel at predicting tokens in sequences, but they *struggle with generating responses that align with instructions*. Fine-tuning techniques, such as **Supervised Fine-Tuning (SFT)** and **Reinforcement Learning from Human Feedback (RLHF)**, can be employed to bridge these gaps. In this sample project, we'll explore the application of SFT to Falcon-7B, a 7-billion-parameter causal decoder model trained by TII on 1,500-billion tokens from RefinedWeb with curated corpora, for conversation summarization tasks.
 
 ### Install and Import the Required Libraries 
 You can create a virtual environment and install all the required libraries needed for this sample project. In Colab, this can be done by running a cell containing the following scripts:
@@ -54,8 +52,79 @@ The dataset contains 14,732 samples for training, 818 samples for validation, an
 ![sample_data](assets/dataset.png)
 
 ### Set up the Configuration for the Fine-Tuning Experiment 
+To further reduce the VRAM usage during training, we will fine-tune [a resharded version of Falcon-7B](https://huggingface.co/vilsonrodrigues/falcon-7b-sharded) in 4-bit precision via [QLoRA](https://arxiv.org/abs/2305.14314). 
 
+The code snippet below shows how to load the base model and preprare the base model for the QLoRA experiement in 4-bit precison. 
+```Python
+model_name = "vilsonrodrigues/falcon-7b-sharded"
 
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_compute_dtype=torch.float16,
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    quantization_config=bnb_config,
+    device_map="auto",
+    trust_remote_code=True,
+)
+model.config.use_cache = False
+model.config.pretraining_tp = 1
+```
+Based on the QLoRA paper, we will taget all linear transformer block layers as target modules for fine-tuning (also see the discussions on reddit [here](https://www.reddit.com/r/LocalLLaMA/comments/15sgg4m/what_modules_should_i_target_when_training_using/?rdt=53925)). The scripts below can be leveraged to find all the taget modules: 
+
+```Python
+def find_target_modules(model):
+    # Initialize a Set to Store Unique Layers
+    unique_layers = set()
+
+    # Iterate Over All Named Modules in the Model
+    for name, module in model.named_modules():
+        # Check if the Module Type Contains 'Linear4bit'
+        if "Linear4bit" in str(type(module)):
+            # Extract the Type of the Layer
+            layer_type = name.split('.')[-1]
+
+            # Add the Layer Type to the Set of Unique Layers
+            unique_layers.add(layer_type)
+
+    # Return the Set of Unique Layers Converted to a List
+    return list(unique_layers)
+target_modules = find_target_modules(model)
+print(target_modules)
+```
+And in this case, the target modules for fine-tuning will be 
+`['dense_4h_to_h', 'dense_h_to_4h', 'query_key_value', 'dense']`. 
+
+After we load the base model, prepare the base model for QLoRA, the configuration used for the fine-tuning experiment can be set via:
+```Python
+model = prepare_model_for_kbit_training(model)
+
+lora_alpha = 32 
+lora_dropout = 0.1 
+lora_rank = 16
+
+peft_config = LoraConfig(
+    lora_alpha=lora_alpha,
+    lora_dropout=lora_dropout,
+    r=lora_rank,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=[
+        "query_key_value",
+        "dense",
+        "dense_h_to_4h",
+        "dense_4h_to_h",
+    ]
+)
+
+peft_model = get_peft_model(model, peft_config)
+peft_model.print_trainable_parameters()
+```
+This configuration will yield `32,636,928 trainable params`, which is only `0.4693018352956629% of the trainable params` compared to the `6,954,357,632 params` of the base model.
 ### Model Inference of the Fined-Tuned Model 
 
 ## Evaluation of Summarization Quality 
