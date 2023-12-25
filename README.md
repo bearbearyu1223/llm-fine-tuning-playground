@@ -18,7 +18,7 @@ Base models such as Claude, T5, Falcon, and Llama2 excel at predicting tokens in
 
 To further reduce the VRAM usage during training, we will fine-tune [a resharded version of Falcon-7B](https://huggingface.co/vilsonrodrigues/falcon-7b-sharded) in 4-bit precision via [QLoRA](https://arxiv.org/abs/2305.14314).
 
-### Install and Important the Required Libraries 
+### Install and Import the Required Libraries 
 You can create a virtual environment and install all the required libraries needed for this sample project. In Colab, this can be done by running a cell containing the following scripts:
 ```Shell 
 !pip install huggingface_hub==0.19.4
