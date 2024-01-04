@@ -338,7 +338,7 @@ Tania: Hell, yes! See you!
 ```				
 
 | Summary - Human Baseline | Summary - PEFT Baseline | Relevance<br>Human | Relevance<br>PEFT Model | Coherence<br>Human | Coherence<br>PEFT Model | Consistency<br>Human | Consistency<br>PEFT Model | Fluency<br>Human | Fluency<br>PEFT Model |
-|--------------------------|-------------------------|-------------------|-------------------------|--------------------|-------------------------|----------------------|--------------------------|------------------|-----------------------|
+|--------------------------|-------------------------|-------|-------|-------|-------|-------|-------|-------|-------|
 | Yaz and Tania will go to a pub on Friday around 8. Sophie is thinking of breaking up with her boyfriend before Uni. Tania is going to Manchester in 4 months. Yaz wants to study medicine in Exeter, so she needs high grades. | Sophie wants to break up because he boyfriend has been cheating on him. Tania needs good results from exams to be admitted to university. Yaz will see his friends at the bar tonight about 8 pm. | 4                     | 3                          | 4                     | 3                          | 4                     | 2                          | 4                     | 2                          |
 
 
